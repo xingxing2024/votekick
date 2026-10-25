@@ -8,7 +8,9 @@ Paper/Purpur 的玩家投票踢人插件：任意玩家发起投票，在线玩�
 
 ## 下载
 
-- 编译好的插件：[`dist/VoteKick-1.0.0.jar`](dist/VoteKick-1.0.0.jar)（约 47 KB）
+- **推荐**：[Releases 页面](https://github.com/xingxing2024/votekick/releases/latest) → `Assets` → `VoteKick-1.0.0.jar`
+- 直链：[VoteKick-1.0.0.jar](https://github.com/xingxing2024/votekick/releases/download/v1.0.0/VoteKick-1.0.0.jar)（约 47 KB）
+- 仓库里也放了一份：[`dist/VoteKick-1.0.0.jar`](dist/VoteKick-1.0.0.jar)
 - 想自己构建：见 [构建](#构建)
 
 ## 特性
