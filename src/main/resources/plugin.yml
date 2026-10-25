@@ -1,0 +1,23 @@
+name: VoteKick
+version: '${project.version}'
+main: cn.server.votekick.VoteKickPlugin
+api-version: '${bukkit.api.version}'
+description: 玩家投票踢人：同意票达到门槛后把目标踢出服务器
+author: ServerTools
+# 线程调度已按 Folia 的区域线程写好，可以在 Folia 上跑
+folia-supported: true
+commands:
+  vk:
+    description: 发起或参与投票踢人
+    usage: /vk <玩家> <理由> | confirm | yes | no | cancel | history | reload
+    aliases: [votekick]
+permissions:
+  votekick.start:
+    description: 发起投票踢人
+    default: true
+  votekick.immune:
+    description: 不能被投票踢出
+    default: op
+  votekick.admin:
+    description: 取消任意投票、查看记录、重载配置
+    default: op

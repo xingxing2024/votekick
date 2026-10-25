@@ -1,0 +1,135 @@
+# 玩家投票踢人（VoteKick）
+# 流程：玩家执行 /vk <玩家> <理由> 发起，先收到恶意投票提醒并 /vk confirm 确认，
+# 之后在线玩家用 /vk yes|no 投票；同意票达到门槛立即踢出，并在 ban-seconds 内禁止其进服，
+# 否则等时限结束后作废。
+# 投票名单在发起时固定，之后进服的玩家不能参与本次投票；同一时间只允许一场投票。
+
+settings:
+  # 通过门槛：同意票占“有资格投票的在线玩家”（不含被投票者）的比例，0.01 ~ 1.0
+  percent: 0.6
+  # 至少需要多少张同意票；人数很少时比例算出的票数不够也按这个值
+  min-votes: 3
+  # 投票持续时间（秒），超时未达标即作废
+  duration-seconds: 120
+  # 同一玩家两次发起投票的最短间隔（秒），0 为不限制
+  cooldown-seconds: 300
+  # 投票理由的最大长度，超出部分截断
+  max-reason-length: 60
+  # 发起后的确认窗口（秒）：发起者要在这段时间内输入 /vk confirm 或点界面里的确认，
+  # 否则这次发起作废。设成 0 表示不需要确认，直接开始投票。
+  confirm-seconds: 30
+  # 确认提醒是否同时广播给全服（默认只给发起者自己看）
+  confirm-broadcast: false
+  # 投票通过后禁止目标进入服务器多少秒（0 = 只踢出、不禁入）。
+  # 按 UUID 记在 bans.txt，重启也有效；目标在投票中下线也照样计入，避免靠下线逃避。
+  ban-seconds: 3600
+  # 投票期间是否给所有在线玩家显示顶部 BOSS 条进度
+  bossbar: true
+
+# 提示文本：支持 & 颜色代码，%名称% 是占位符
+messages:
+  prefix: "&8[&c投票踢人&8] &r"
+  player-only: "&c只有玩家可以发起或参与投票。"
+  no-permission: "&c你没有权限这样做。"
+  usage: "&7用法：&f/vk &7打开界面，&f/vk <玩家> <理由> &7发起，&f/vk confirm &7确认发起，&f/vk yes|no &7投票，&f/vk cancel &7取消，&f/vk history [玩家] [页] &7查记录，&f/vk reload &7重载"
+  player-not-found: "&c找不到在线玩家 &f%target%&c。"
+  self: "&c不能对自己发起投票。"
+  immune: "&c%target% 不能被投票踢出。"
+  vote-running: "&c已有进行中的投票（目标 &f%target%&c），请等它结束。"
+  cooldown: "&c你刚发起过投票，请 &f%time% &c秒后再试。"
+  not-enough-players: "&c在线可投票玩家不足：需要 &f%need% &c张同意票，当前只有 &f%eligible% &c人。"
+  started: "&e%player% &7发起投票踢出 &f%target%&7，原因：&f%reason%\n&7同意 &f%yes%&7/&f%need%&7，反对 &f%no%&7；输入 &a/vk yes &7或 &c/vk no&7，剩余 &f%time% &7秒"
+  # 发起投票必须写理由：指令没带理由时报这句，GUI 里则先在聊天里补
+  reason-required: "&c发起投票必须填写理由：&f/vk <玩家> <理由>"
+  reason-prompt: "&e请在聊天里输入踢出 &f%target% &e的理由（输入 &fcancel &e取消）。"
+  reason-cancelled: "&7已放弃发起投票。"
+  # 发起后的恶意投票提醒（可以写成多行列表，每一项一行）
+  confirm-warning:
+    - "&c&l⚠ 恶意投票提醒"
+    - "&8&m──────────────────"
+    - "&7目标：&f%target%"
+    - "&7理由：&f%reason%"
+    - "&7报假理由、拉人报复、恶意围攻、针对同一玩家反复发起，"
+    - "&7都会被记录到投票日志，由管理员核实后处罚。"
+    - "&8&m──────────────────"
+    - "&a%time% &7秒内输入 &f/vk confirm &7确认发起"
+    - "&7点开界面 &f/vk &7也可以直接确认或放弃"
+  # 确认提醒广播给全服时用的文本（settings.confirm-broadcast: true 才发）
+  confirm-broadcast: "&e%player% &7正在发起对 &f%target% &7的投票，请确认理由是否正当。"
+  confirm-cancelled: "&7已放弃本次发起。"
+  confirm-expired: "&c确认超时，本次发起已作废。"
+  confirm-none: "&7你没有待确认的发起。"
+  confirm-busy: "&c有人正在确认发起投票（目标 &f%target%&c），请稍等。"
+  side-yes: "&a同意"
+  side-no: "&c反对"
+  vote-progress: "&7%player% 投了%side%&7：同意 &f%yes%&7/&f%need%&7，反对 &f%no%"
+  no-vote: "&7当前没有进行中的投票。"
+  not-eligible: "&7你不在本次投票名单中。"
+  passed: "&a投票通过&7：同意 &f%yes%&7、反对 &f%no%&7，&f%target% &7已被踢出，原因：&f%reason%"
+  failed: "&c投票未通过&7：同意 &f%yes%&7/&f%need%&7、反对 &f%no%&7，&f%target% &7留在服务器。"
+  cancelled: "&7%target% 的投票已被 &f%player% &7取消。"
+  target-left: "&7投票终止：&f%target% &7已离开服务器。"
+  # 目标在投票中下线但禁入功能开着时用这句：投票继续，通过后照样禁入
+  target-offline: "&7%target% &7下线了，投票继续；通过后照样禁止其进入服务器。"
+  # 投票通过、禁入生效时全服播报（settings.ban-seconds > 0 才有）
+  ban-applied: "&c%target% &7在 &f%time% &7内不能进入服务器。"
+  kick-screen: "&c你被 &f%yes% &c名玩家投票踢出\n&7原因：&f%reason%"
+  # 禁入期内登录时看到的界面（%time% 剩余时间，%reason% 当时的理由）
+  ban-screen:
+    - "&c你被玩家投票踢出了服务器"
+    - "&8&m──────────────────"
+    - "&7剩余时间：&f%time%"
+    - "&7理由：&f%reason%"
+    - "&8&m──────────────────"
+    - "&7如有异议，请联系管理员核实。"
+  # 时长文案：%time% 由下面三段拼出来，只拼非零的部分（3600 秒 → "1 小时"）
+  duration-hour: "%value% 小时"
+  duration-minute: "%value% 分"
+  duration-second: "%value% 秒"
+  reloaded: "&a配置已重载。"
+  # 聊天里的可点击投票按钮（投票开始后单独广播一行）
+  vote-button-yes: "&a&l[ 同意 ]"
+  vote-button-no: "&c&l[ 反对 ]"
+  # ---------------- GUI ----------------
+  gui-title-vote: "&8&l投票踢人 &8· &c进行中"
+  gui-title-players: "&8&l投票踢人 &8· &a选择目标"
+  gui-title-confirm: "&8&l投票踢人 &8· &e确认发起"
+  gui-confirm-info-name: "&c&l恶意投票提醒"
+  gui-confirm-name: "&a&l确认发起"
+  gui-confirm-lore: "&7还有 &f%time% &7秒，点这里表示知悉恶意投票会被处罚"
+  gui-confirm-cancel-name: "&c&l放弃"
+  gui-target-name: "&f&l%target%"
+  gui-lore-reason: "&7原因：&f%reason%"
+  gui-lore-progress: "&8%bar% &f%yes%&8/&f%need%"
+  gui-lore-time: "&7剩余 &f%time% &7秒"
+  gui-lore-yes: "&a同意 &f%yes%&8/&f%need%"
+  gui-lore-no: "&c反对 &f%no%"
+  gui-yes-name: "&a&l同意"
+  gui-no-name: "&c&l反对"
+  gui-status-name: "&e&l投票进行中"
+  gui-close-name: "&7关闭"
+  gui-cancel-name: "&c&l取消投票"
+  gui-cancel-lore: "&7仅发起者或管理员可点"
+  gui-player-name: "&f&l%target%"
+  gui-player-lore: "&7左键发起投票，然后在聊天里输入理由"
+  gui-no-players: "&7当前没有可投票的玩家"
+  gui-prev-name: "&7上一页"
+  gui-next-name: "&7下一页"
+  gui-page-name: "&f第 %page% &8/ &f%pages% &7页"
+  gui-page-lore: "&7共 %total% 名可投票玩家"
+  # ---------------- BOSS 条 ----------------
+  # 投票期间全服顶部的实时进度条文本
+  bossbar: "&c投票踢出 &f%target% &8| &a同意 &f%yes%&8/&f%need% &8| &c反对 &f%no% &8| &7剩余 &f%time%&7 秒"
+  # ---------------- 投票记录 ----------------
+  # 每次投票结束时追加到 plugins/VoteKick/logs/votes-日期.log 的那一行里的结果词
+  log-passed: "通过"
+  log-failed: "未通过"
+  log-timeout: "超时作废"
+  log-cancelled: "被取消"
+  log-left: "目标离线"
+  # /vk history [玩家] [页码]
+  history-header: "&8[&c投票踢人&8] &7记录 &f%player% &8· &7第 &f%page% &7页"
+  history-all: "全部玩家"
+  history-line: "&7%line%"
+  history-more: "&8下一页：&f/vk history %next%"
+  history-empty: "&7没有找到 &f%player% &7的投票记录。"

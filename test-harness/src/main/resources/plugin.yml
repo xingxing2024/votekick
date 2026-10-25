@@ -1,0 +1,7 @@
+name: VoteKickIntegrationTest
+version: '${project.version}'
+main: cn.server.votekick.test.VoteKickIntegrationTest
+api-version: '26.3'
+description: VoteKick 本地集成测试钩子（仅测试用）
+author: VoteKickTest
+depend: [VoteKick, fakeplayer]
